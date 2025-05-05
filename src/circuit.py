@@ -104,14 +104,13 @@ class Circuit:
                 self.dependent_components.append(component)
 
         for independent_component in self.independent_components:
-            print(f"Solving {independent_component.name}...")
             self.temp_n = 0
             self.matrix: np.ndarray = np.zeros(shape=(0, 0), dtype=complex)
             self.currents: np.ndarray = np.zeros(shape=(0, 1), dtype=complex)
             self.terminals: typing.Dict[str, int] = dict()
 
             self.check_terminals(independent_component)
-            independent_component.stamp(self.matrix, self.currents, self.terminals)
+            independent_component.stamp(self.matrix, self.currents, self.terminals, active=True)
             if sweep: s = sweep
             else: s = independent_component.s
 
@@ -119,6 +118,13 @@ class Circuit:
                 self.check_terminals(dependent_component)
                 dependent_component.set_s(s)
                 dependent_component.stamp(self.matrix, self.currents, self.terminals)
+            
+            for component in self.independent_components:
+                if component != independent_component:
+                    print(f"Component: {component.name}")
+                    self.check_terminals(component)
+                    component.set_s(s)
+                    component.stamp(self.matrix, self.currents, self.terminals, active=False)
 
             assert earth in self.terminals
 
@@ -133,6 +139,20 @@ class Circuit:
 
             for key in self.terminals:
                 self.voltages[self.real_terminals[key]] += voltages[self.terminals[key]]
+
+    def clear_components(self) -> None:
+        """
+        Clears all components from the circuit.
+        
+        Resets the component dictionary and terminal mappings.
+        """
+        self.components = dict()
+        self.independent_components = []
+        self.dependent_components = []
+        self.terminals = dict()
+        self.real_terminals = dict()
+        self.n = 0
+        self.temp_n = 0
 
     def component_info(self, name: str) -> pd.Series:
         """

@@ -75,22 +75,24 @@ class CurrentFontControledByVoltage(Component):
 
 class CurrentFont(Component):
 
-    def __init__(self, name: str, positive: str, negative: str, current_value: complex) -> None:
+    def __init__(self, name: str, positive: str, negative: str, current_value: complex, s: complex = 0) -> None:
         super().__init__([positive, negative], name)
         self.positive: str = positive
         self.negative: str = negative
-        self.s: complex = current_value
+        self.value: complex = current_value
+        self.s: complex = s
         self.active: bool = True
 
-    def stamp(self, matrix: np.ndarray, currents: np.ndarray, terminals: typing.Dict[str, int]) -> None:
-        currents[terminals[self.positive]] -= self.s
-        currents[terminals[self.negative]] += self.s
+    def stamp(self, matrix: np.ndarray, currents: np.ndarray, terminals: typing.Dict[str, int], active: bool) -> None:
+        if active:
+            currents[terminals[self.positive]] -= self.value
+            currents[terminals[self.negative]] += self.value
 
     def voltage(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return voltages[terminals[self.positive]] - voltages[terminals[self.negative]]
 
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
-        return self.s
+        return self.value
 
 class Capacitor(Component):
 
@@ -178,25 +180,27 @@ class Transformer(Component):
 
 class VoltageFont(Component):
 
-    def __init__(self, name: str, positive: str, negative: str, voltage_value: complex) -> None:
+    def __init__(self, name: str, positive: str, negative: str, voltage_value: complex, s: complex = 0) -> None:
         self.x: str = f"I_{name}" 
         super().__init__([positive, negative, self.x], name)
         self.positive: str = positive
         self.negative: str = negative
 
-        self.s: complex = voltage_value
+        self.value: complex = voltage_value
+        self.s: complex = s
         self.active: bool = True
 
-    def stamp(self, matrix: np.ndarray, currents: np.ndarray, terminals: typing.Dict[str, int]) -> None:
+    def stamp(self, matrix: np.ndarray, currents: np.ndarray, terminals: typing.Dict[str, int], active: bool) -> None:
         matrix[terminals[self.positive], terminals[self.x]] += 1
         matrix[terminals[self.negative], terminals[self.x]] -= 1
         matrix[terminals[self.x], terminals[self.positive]] -= 1
         matrix[terminals[self.x], terminals[self.negative]] += 1
 
-        currents[terminals[self.x]] -= self.s
+        if active:
+            currents[terminals[self.x]] -= self.value
 
     def voltage(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
-        return self.s
+        return self.value
 
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return voltages[terminals[self.x]]
