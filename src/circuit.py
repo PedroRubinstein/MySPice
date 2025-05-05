@@ -98,7 +98,7 @@ class Circuit:
 
         for name in self.components:
             component = self.components[name]
-            if component.active:
+            if component.independent:
                 self.independent_components.append(component)
             else:
                 self.dependent_components.append(component)
