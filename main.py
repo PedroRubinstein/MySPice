@@ -47,6 +47,6 @@ if __name__ == "__main__":
 
     circuit.solve('b', sweep=1j)
     
-    df = circuit.table()
-
-    print(df)
+    for variable, value in zip(circuit.terminals, circuit.voltages):
+        print(f"{variable}: {value} V")
+    print(circuit.table())
