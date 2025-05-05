@@ -8,29 +8,29 @@ from src.grafical import ComplexFunction
 class Circuit:
 
     def __init__(self, path: str = None) -> None:
-        # Counter for real terminals across all active component analyses
+        """
+        Initialize a new circuit object.
+        
+        Args:
+            path: Optional path to a netlist file to load
+        """
+        # Counter for terminals in the system
         self.n: int = 0
-        # Counter for terminals within a single active component analysis
-        self.temp_n: int = 0
         # Matrix of the circuit equation system (MNA - Modified Nodal Analysis)
         self.matrix: np.ndarray = np.zeros(shape=(0, 0), dtype=complex)
-        # Both vectors don't just store voltages, but are a mix of voltages and currents 
-        # voltages accumulates results across all superposition analyses (are the variables e1, iR1, etc)
-        # currents accumulates the constants that are used to solve the system (are the constants I1, V1, etc)
-        # suggestion: rename to variables and constants. Names come from original Nodal Analysis
+        # Both vectors store a mix of voltages and currents as per MNA approach
+        # voltages stores the computed variables (node voltages, branch currents)
+        # currents stores the constants used to solve the system (source values)
         self.voltages: np.ndarray = np.zeros(shape=(0, 1), dtype=complex)
         self.currents: np.ndarray = np.zeros(shape=(0, 1), dtype=complex)
 
         # Dictionary to store all components by name
         self.components: typing.Dict[str, Component.Component] = dict()
-        # Lists to separate independent sources and dependent components (active and passive)
+        # Lists for components (kept for compatibility)
         self.independent_components: typing.List[Component.Component] = []
         self.dependent_components: typing.List[Component.Component] = []
-        # Maps terminal names to indices in the current analysis matrix
+        # Maps terminal names to indices in the matrix
         self.terminals: typing.Dict[str, int] = dict()
-        # Maps terminal names to indices in the final results vector
-        # Used to accumulate superposition results across analyses
-        self.real_terminals: typing.Dict[str, int] = dict()
 
         self.path: str = path if path else self.read_netlist(path)
 
@@ -40,32 +40,22 @@ class Circuit:
     def check_terminals(self, component: Component.Component):
         """
         Checks if component terminals already exist in the circuit and adds them if necessary.
-        Updates both the temporary terminals for the current analysis and the global terminal mapping.
+        Updates the terminals mapping and expands the matrix as needed.
         
-        For each new terminal, this method:
-        1. Updates the current analysis mapping and matrix dimensions
-        2. Updates the global terminal mapping for superposition results
+        For each new terminal, this method expands the matrix and vectors dimensions.
         
         Args:
             component: The component whose terminals need to be checked and added
         """
         for terminal in component.terminals:
-            # If terminal not already in current analysis, add it
+            # If terminal not already in current matrix, add it
             if not terminal in self.terminals:
-                # Assign temporary index for this analysis
-                self.terminals[terminal] = self.temp_n
-                self.temp_n += 1
+                # Assign index for this terminal
+                self.terminals[terminal] = self.n
+                self.n += 1
                 # Expand matrix and vectors for the new terminal
                 self.matrix = np.pad(self.matrix, ((0, 1), (0, 1)), "constant")
                 self.currents = np.pad(self.currents, ((0, 1), (0, 0)), "constant")
-                self.voltages = np.pad(self.voltages, ((0, 1), (0, 0)), "constant") # Changing to voltages alters results. Which is correct?
-
-            # If terminal not registered in global mapping for superposition, add it
-            if not terminal in self.real_terminals:
-                # Assign global index for superposition results
-                self.real_terminals[terminal] = self.n
-                self.n += 1
-                # Expand final results vector to accommodate new terminal
                 self.voltages = np.pad(self.voltages, ((0, 1), (0, 0)), "constant")
 
     def add_component(self, component: Component.Component) -> None:
@@ -80,59 +70,46 @@ class Circuit:
 
     def solve(self, earth: str, sweep: complex = None) -> None:
         """
-        Solves the circuit using superposition principle.
+        Solves the circuit using a single matrix approach.
         
-        For each independent source (active component):
-        1. Builds a new circuit matrix considering just that source
-        2. Solves the system with the source active
-        3. Accumulates results using superposition
+        Builds a single circuit matrix considering all components at once
+        and solves the system in one step.
         
         Args:
             earth: The reference node (ground) name
             sweep: Optional complex frequency value for AC analysis
         """
-        self.voltages: np.ndarray = np.zeros(shape=(0, 1))
+        # Reset matrices for this solution
+        self.n = 0
+        self.matrix = np.zeros(shape=(0, 0), dtype=complex)
+        self.currents = np.zeros(shape=(0, 1), dtype=complex)
+        self.terminals = dict()
+        self.voltages = np.zeros(shape=(0, 1), dtype=complex)
 
-        self.independent_components: typing.List[Component.Component] = []
-        self.dependent_components: typing.List[Component.Component] = []
+        # Process all components at once
+        for name, component in self.components.items():
+            # Check terminals for each component
+            self.check_terminals(component)
+            
+            # Set the complex frequency for this analysis
+            if sweep is not None:
+                component.set_s(sweep)
+                
+            # Add component to the matrix
+            component.stamp(self.matrix, self.currents, self.terminals)
 
-        for name in self.components:
-            component = self.components[name]
-            if component.active:
-                self.independent_components.append(component)
-            else:
-                self.dependent_components.append(component)
+        # Check that the earth terminal exists
+        assert earth in self.terminals
 
-        for independent_component in self.independent_components:
-            print(f"Solving {independent_component.name}...")
-            self.temp_n = 0
-            self.matrix: np.ndarray = np.zeros(shape=(0, 0), dtype=complex)
-            self.currents: np.ndarray = np.zeros(shape=(0, 1), dtype=complex)
-            self.terminals: typing.Dict[str, int] = dict()
-
-            self.check_terminals(independent_component)
-            independent_component.stamp(self.matrix, self.currents, self.terminals)
-            if sweep: s = sweep
-            else: s = independent_component.s
-
-            for dependent_component in self.dependent_components:
-                self.check_terminals(dependent_component)
-                dependent_component.set_s(s)
-                dependent_component.stamp(self.matrix, self.currents, self.terminals)
-
-            assert earth in self.terminals
-
-            matrix = np.delete(np.delete(self.matrix, self.terminals[earth], axis=0) , self.terminals[earth], axis=1)
-            current = np.delete(self.currents, self.terminals[earth], axis=0)
-            voltages = np.linalg.solve(matrix, current)
-            voltages = np.insert(voltages, self.terminals[earth], 0).reshape(-1, 1)
-
-            if self.voltages.dtype != voltages.dtype:
-                self.voltages = self.voltages.astype(complex)
-                voltages = voltages.astype(complex)
-
-            for key in self.terminals:
-                self.voltages[self.real_terminals[key]] += voltages[self.terminals[key]]
+        # Remove the earth node from the system
+        matrix = np.delete(np.delete(self.matrix, self.terminals[earth], axis=0), self.terminals[earth], axis=1)
+        current = np.delete(self.currents, self.terminals[earth], axis=0)
+        
+        # Solve the system
+        voltages = np.linalg.solve(matrix, current)
+        
+        # Insert the zero voltage at the earth node
+        self.voltages = np.insert(voltages, self.terminals[earth], 0).reshape(-1, 1)
 
     def component_info(self, name: str) -> pd.Series:
         """
@@ -162,7 +139,26 @@ class Circuit:
                         input: typing.Tuple[str, str], 
                         output: typing.Tuple[str, str]) \
                         -> ComplexFunction:
+        """
+        Calculates the transfer function between specified input and output components.
         
+        This method creates a ComplexFunction that computes the ratio between
+        an output characteristic and an input characteristic at different complex
+        frequencies.
+        
+        Args:
+            earth: The reference node (ground) name
+            input: Tuple containing (component_name, property) for input
+                  where property is one of "Voltage", "Current", or "Power"
+            output: Tuple containing (component_name, property) for output
+                   where property is one of "Voltage", "Current", or "Power"
+                   
+        Returns:
+            A ComplexFunction object that computes the transfer function
+            
+        Raises:
+            AssertionError: If the component names don't exist or properties are invalid
+        """
         assert input[0] in self.components
         assert output[0] in self.components
 
@@ -174,32 +170,41 @@ class Circuit:
             def f(values):
                 if type(values) == np.ndarray:
                     if len(values.shape) == 2:
+                        # Handle 2D array of complex frequencies
                         answer = []
                         for values_list in values:
                             for s in values_list:
+                                # Set complex frequency and solve circuit
                                 self.components[input[0]].set_s(s)
                                 self.solve(earth, s)
 
+                                # Calculate ratio of output to input
                                 input_component_info = self.component_info(input[0])[input[1]]
                                 output_component_info = self.component_info(output[0])[output[1]]
                                 answer.append(output_component_info/input_component_info)
                         answer = np.array(answer).reshape(values.shape)
                         return answer
                     elif len(values.shape) == 1:
+                        # Handle 1D array of complex frequencies
                         answer = []
                         for s in values:
+                            # Set complex frequency and solve circuit
                             self.components[input[0]].set_s(s)
                             self.solve(earth, s)
 
+                            # Calculate ratio of output to input
                             input_component_info = self.component_info(input[0])[input[1]]
                             output_component_info = self.component_info(output[0])[output[1]]
                             answer.append(output_component_info/input_component_info)
                         answer = np.array(answer).reshape(values.shape)
                         return answer
                 elif type(values) == complex:
+                    # Handle single complex frequency
+                    s = values  # Use values as the complex frequency
                     self.components[input[0]].set_s(s)
                     self.solve(earth, s)
 
+                    # Calculate ratio of output to input
                     input_component_info = self.component_info(input[0])[input[1]]
                     output_component_info = self.component_info(output[0])[output[1]]
                     return output_component_info/input_component_info

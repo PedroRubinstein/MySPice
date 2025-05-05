@@ -11,6 +11,22 @@ import src.component as Component
 
 if __name__ == "__main__":
 
+    circuit_a = Circuit()
+
+    components = [
+        Component.VoltageFont("V1", 'a', 'gnd', 5),
+        Component.VoltageFont("V2", 'b', 'a', 5),
+        Component.Resistor("R1", 'b', 'c', 1000),
+        Component.Resistor("R2", 'c', 'gnd', 1000)
+    ]
+    for component in components:
+        circuit_a.add_component(component)
+
+    circuit_a.solve('gnd')
+    for variable, value in zip(circuit_a.terminals, circuit_a.voltages):
+        print(f"{variable}: {value} V")
+    print(circuit_a.table())
+
     circuit = Circuit()
 
     components = [

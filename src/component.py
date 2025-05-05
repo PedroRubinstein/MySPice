@@ -12,7 +12,7 @@ class Component:
         self.name = name
         self.terminals: typing.List[str] = terminals
         self.s: complex = 0
-        self.active: bool = False
+        self.independent: bool = False
 
     def set_s(self, s: complex) -> None:
         self.s: complex = s
@@ -80,7 +80,7 @@ class CurrentFont(Component):
         self.positive: str = positive
         self.negative: str = negative
         self.s: complex = current_value
-        self.active: bool = True
+        self.independent: bool = True
 
     def stamp(self, matrix: np.ndarray, currents: np.ndarray, terminals: typing.Dict[str, int]) -> None:
         currents[terminals[self.positive]] -= self.s
@@ -185,7 +185,7 @@ class VoltageFont(Component):
         self.negative: str = negative
 
         self.s: complex = voltage_value
-        self.active: bool = True
+        self.independent: bool = True
 
     def stamp(self, matrix: np.ndarray, currents: np.ndarray, terminals: typing.Dict[str, int]) -> None:
         matrix[terminals[self.positive], terminals[self.x]] += 1
