@@ -26,9 +26,6 @@ class Circuit:
 
         # Dictionary to store all components by name
         self.components: typing.Dict[str, Component.Component] = dict()
-        # Lists for components (kept for compatibility)
-        self.independent_components: typing.List[Component.Component] = []
-        self.dependent_components: typing.List[Component.Component] = []
         # Maps terminal names to indices in the matrix
         self.terminals: typing.Dict[str, int] = dict()
 
