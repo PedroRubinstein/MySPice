@@ -65,6 +65,18 @@ class Circuit:
         self.components[component.name] = component
         self.check_terminals(component)
 
+    def clear_components(self) -> None:
+        """
+        Clears all components from the circuit.
+        
+        Resets the components dictionary and clears the matrix and vectors.
+        """
+        self.components = dict()
+        self.matrix = np.zeros(shape=(0, 0), dtype=complex)
+        self.currents = np.zeros(shape=(0, 1), dtype=complex)
+        self.voltages = np.zeros(shape=(0, 1), dtype=complex)
+        self.terminals = dict()
+
     def solve(self, earth: str, sweep: complex = None) -> None:
         """
         Solves the circuit using a single matrix approach.

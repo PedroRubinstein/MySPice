@@ -11,7 +11,7 @@ import src.component as Component
 
 if __name__ == "__main__":
 
-    circuit_a = Circuit()
+    circuit = Circuit()
 
     components = [
         Component.VoltageFont("V1", 'a', 'gnd', 5),
@@ -20,18 +20,45 @@ if __name__ == "__main__":
         Component.Resistor("R2", 'c', 'gnd', 1000)
     ]
     for component in components:
-        circuit_a.add_component(component)
+        circuit.add_component(component)
 
-    circuit_a.solve('gnd')
-    for variable, value in zip(circuit_a.terminals, circuit_a.voltages):
+    circuit.solve('gnd')
+    for variable, value in zip(circuit.terminals, circuit.voltages):
         print(f"{variable}: {value} V")
-    print(circuit_a.table())
+    print(circuit.table())
 
+    circuit.clear_components()
 
-    # Correct values:
-    # Va = 5.0 V
-    # Vb = 10.0 V
-    # Vc = 5.0 V
-    # gnd = 0
-    # I_V1 E I_V2 = 0,005 A
-    # I_R1 E I_R2 = 0,005 A
+    components = [ #Falstad Capacitor example
+        Component.VoltageFont("V1", 'a', 'gnd', 5),
+        Component.Capacitor("C1", 'a', 'b', 200e-6),
+        Component.Resistor("R1", 'b', 'gnd', 100)
+    ]
+
+    for component in components:
+        circuit.add_component(component)
+
+    circuit.solve('gnd')
+    for variable, value in zip(circuit.terminals, circuit.voltages):
+        print(f"{variable}: {value} V")
+    print(circuit.table())
+
+    circuit.clear_components()
+
+    components = [ #Falstad Voltage Divider example
+    Component.VoltageFont("V1", 'top', 'gnd', 10),  # 10V source
+    Component.Resistor("R1", 'top', 'mid_left', 10000),
+    Component.Resistor("R2", 'mid_left', 'gnd', 10000),
+    Component.Resistor("R3", 'top', 'n1', 10000),
+    Component.Resistor("R4", 'n1', 'n2', 10000),
+    Component.Resistor("R5", 'n2', 'n3', 10000),
+    Component.Resistor("R6", 'n3', 'gnd', 10000),
+]
+
+    for component in components:
+        circuit.add_component(component)
+
+    circuit.solve('gnd')
+    for variable, value in zip(circuit.terminals, circuit.voltages):
+        print(f"{variable}: {value} V")
+    print(circuit.table())
