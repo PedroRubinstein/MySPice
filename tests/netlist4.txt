@@ -1,0 +1,5 @@
+* Resultado esperado: [6.]
+
+V1 1 0 DC 10
+R1 1 2 2
+R2 2 0 3

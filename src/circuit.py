@@ -1,6 +1,7 @@
 import typing
 import numpy as np
 import pandas as pd
+import os
 
 import src.component as Component
 from src.grafical import ComplexFunction
@@ -17,7 +18,7 @@ class Circuit:
         # Both vectors don't just store voltages, but are a mix of voltages and currents 
         # voltages accumulates results across all superposition analyses (are the variables e1, iR1, etc)
         # currents accumulates the constants that are used to solve the system (are the constants I1, V1, etc)
-        # suggestion: rename to variables and constants. Names come from original Nodal Analysis
+        # suggestion (pedro): rename to variables and constants. Names come from original Nodal Analysis
         self.voltages: np.ndarray = np.zeros(shape=(0, 1), dtype=complex)
         self.currents: np.ndarray = np.zeros(shape=(0, 1), dtype=complex)
 
@@ -32,10 +33,91 @@ class Circuit:
         # Used to accumulate superposition results across analyses
         self.real_terminals: typing.Dict[str, int] = dict()
 
-        self.path: str = path if path else self.read_netlist(path)
+    def read_netlist(self, path: str) -> None: # Changed return type to None
+        """
+        Reads a netlist file, parses components, and adds them to the circuit.
 
-    def read_netlist(self, path: str) -> str:
-                pass
+        Args:
+            path: The path to the netlist file.
+
+        Raises:
+            FileNotFoundError: If the specified netlist file does not exist.
+            ValueError: If a line in the netlist has an invalid format or unknown component type.
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Netlist file not found: {path}")
+
+        with open(path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                # Ignore comments and empty lines
+                if not line or line.startswith('*'):
+                    continue
+
+                parts = line.split()
+                if len(parts) < 3:
+                    print(f"Skipping invalid line: {line}") # Or raise ValueError
+                    continue
+
+                component_type_char = parts[0][0].upper()
+                name = parts[0]
+                
+                try:
+                    if component_type_char == 'R':
+                        # Format: R<name> <node1> <node2> <value>
+                        if len(parts) != 4: raise ValueError("Invalid Resistor format")
+                        comp = Component.Resistor(name, parts[1], parts[2], float(parts[3]))
+                    elif component_type_char == 'V':
+                        # Format: V<name> <node+> <node-> DC <value> (Assuming DC for now)
+                        # TODO: Handle AC sources
+                        if len(parts) != 5 or parts[3].upper() != 'DC': raise ValueError("Invalid or non-DC Voltage Source format")
+                        comp = Component.VoltageSource(name, parts[1], parts[2], float(parts[4]))
+                    elif component_type_char == 'I':
+                         # Format: I<name> <node+> <node-> DC <value> (Assuming DC for now)
+                         # TODO: Handle AC sources
+                        if len(parts) != 5 or parts[3].upper() != 'DC': raise ValueError("Invalid or non-DC Current Source format")
+                        comp = Component.CurrentSource(name, parts[1], parts[2], float(parts[4]))
+                    elif component_type_char == 'C':
+                        # Format: C<name> <node+> <node-> <value> [IC=<initial_voltage>]
+                        if len(parts) < 4: raise ValueError("Invalid Capacitor format")
+                        initial_voltage = 0.0
+                        if len(parts) > 4 and parts[4].upper().startswith('IC='):
+                            initial_voltage = float(parts[4].split('=')[1])
+                        comp = Component.Capacitor(name, parts[1], parts[2], float(parts[3]), initial_voltage)
+                    elif component_type_char == 'L':
+                         # Format: L<name> <node+> <node-> <value> [IC=<initial_current>]
+                        if len(parts) < 4: raise ValueError("Invalid Inductor format")
+                        initial_current = 0.0
+                        if len(parts) > 4 and parts[4].upper().startswith('IC='):
+                            initial_current = float(parts[4].split('=')[1])
+                        comp = Component.Inductor(name, parts[1], parts[2], float(parts[3]), initial_current)
+                    # Dependent Sources
+                    elif component_type_char == 'G': # VCCS
+                        # Format: G<name> <out+> <out-> <control+> <control-> <transconductance>
+                        if len(parts) != 6: raise ValueError("Invalid VCCS (G) format")
+                        comp = Component.CurrentSourceControledByVoltage(name, parts[1], parts[2], parts[3], parts[4], float(parts[5]))
+                    elif component_type_char == 'E': # VCVS
+                        # Format: E<name> <out+> <out-> <control+> <control-> <gain>
+                        if len(parts) != 6: raise ValueError("Invalid VCVS (E) format")
+                        comp = Component.VoltageSourceControledByVoltage(name, parts[1], parts[2], parts[3], parts[4], float(parts[5]))
+                    elif component_type_char == 'F': # CCCS
+                         # Format: F<name> <out+> <out-> <control_Vname> <gain>
+                        if len(parts) != 6: raise ValueError("Invalid CCCS (F) format - Check implementation details")
+                        comp = Component.CurrentSourceControledByCurrent(name, parts[1], parts[2], parts[3], parts[4], float(parts[5]))
+                    elif component_type_char == 'H': # CCVS
+                        # Format: H<name> <out+> <out-> <control_Vname> <transresistance>
+                        if len(parts) != 6: raise ValueError("Invalid CCVS (H) format - Check implementation details")
+                        comp = Component.VoltageSourceControledByCurrent(name, parts[1], parts[2], parts[3], parts[4], float(parts[5]))
+                        # H<name> <out+> <out-> <control_node+> <control_node-> <value>
+                    # TODO: Add K (Transformer) parsing - requires finding L1, L2 first.
+                    else:
+                        print(f"Skipping unknown component type: {parts[0]}")
+                        continue
+                        
+                    self.add_component(comp)
+
+                except (ValueError, IndexError) as e:
+                    print(f"Error parsing line: {line} - {e}")
 
     def check_terminals(self, component: Component.Component):
         """
@@ -121,7 +203,6 @@ class Circuit:
             
             for component in self.independent_components:
                 if component != independent_component:
-                    print(f"Component: {component.name}")
                     self.check_terminals(component)
                     component.set_s(s)
                     component.stamp(self.matrix, self.currents, self.terminals, active=False)
@@ -177,6 +258,19 @@ class Circuit:
         info["Current"] = self.components[name].current(self.terminals, self.voltages)
         info["Power"] = info["Voltage"]*info["Current"]
         return info
+
+    def print_node_tensions(self) -> None:
+        """
+        Prints the voltages at each node in the circuit.
+        
+        This method iterates through the terminals and prints the voltage
+        at each terminal based on the current state of the solved circuit.
+        """
+        for key in dict(sorted(self.real_terminals.items())):
+
+            if "I" in key:
+                continue
+            print(f"{key}: {self.voltages[self.real_terminals[key]]} V")
 
     def transfer_function(self, earth: str,
                         input: typing.Tuple[str, str], 
