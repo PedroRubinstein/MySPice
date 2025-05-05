@@ -51,7 +51,7 @@ class Resistor(Component):
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return (self.voltage(terminals, voltages))/self.resistence
 
-class CurrentFontControledByVoltage(Component):
+class CurrentSourceControledByVoltage(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, transconductance: complex) -> None:
         super().__init__([positive, negative, positive_control, negative_control], name)
@@ -73,7 +73,7 @@ class CurrentFontControledByVoltage(Component):
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return self.transconductance * (voltages[terminals[self.positive_control]] - voltages[terminals[self.negative_control]])
 
-class CurrentFont(Component):
+class CurrentSource(Component):
 
     def __init__(self, name: str, positive: str, negative: str, current_value: complex, s: complex = 0) -> None:
         super().__init__([positive, negative], name)
@@ -178,7 +178,7 @@ class Transformer(Component):
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         pass
 
-class VoltageFont(Component):
+class VoltageSource(Component):
 
     def __init__(self, name: str, positive: str, negative: str, voltage_value: complex, s: complex = 0) -> None:
         self.x: str = f"I_{name}" 
@@ -205,7 +205,7 @@ class VoltageFont(Component):
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return voltages[terminals[self.x]]
 
-class VoltageFontControledByVoltage(Component):
+class VoltageSourceControledByVoltage(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, amplification: complex):
         self.x: str = f"I_{name}"
@@ -230,7 +230,7 @@ class VoltageFontControledByVoltage(Component):
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return voltages[terminals[self.x]]
 
-class CurrentFontControledByCurrent(Component):
+class CurrentSourceControledByCurrent(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, amplification: complex):
         self.x: str = f"I_{name}"
@@ -255,7 +255,7 @@ class CurrentFontControledByCurrent(Component):
     def current(self, terminals: typing.Dict[str, int], voltages: np.ndarray) -> complex:
         return self.amplification * voltages[terminals[self.x]]
 
-class VoltageFontControledByCurrent(Component):
+class VoltageSourceControledByCurrent(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, amplification: complex):
         self.x: str = f"I_control_{name}"
