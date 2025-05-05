@@ -32,7 +32,7 @@ class Component:
 class Resistor(Component):
 
     def __init__(self, name: str, positive: str, negative: str, resistence: float) -> None:
-        self.x: str = 'i'.join(random.choices(string.digits, k=K))
+        self.x: str = f"I_{name}"
         super().__init__([positive, negative, self.x], name)
         self.positive: str = positive
         self.negative: str = negative
@@ -119,7 +119,7 @@ class Capacitor(Component):
 class Inductor(Component):
     
     def __init__(self, name: str, positive: str, negative: str, indutance: float, initial_current: float = 0) -> None:
-        self.x: str = 'i'.join(random.choices(string.digits, k=K))
+        self.x: str = f"I_{name}"
         super().__init__([positive, negative, self.x], name)
         self.positive: str = positive
         self.negative: str = negative
@@ -144,8 +144,8 @@ class Inductor(Component):
 class Transformer(Component):
 
     def __init__(self, name: str, inductor1: Inductor, inductor2: Inductor, m: float) -> None:
-        self.x: str = 'i'.join(random.choices(string.digits, k=K))
-        self.y: str = 'i'.join(random.choices(string.digits, k=K))
+        self.x: str = f"I_ab_{name}"
+        self.y: str = f"I_cd_{name}"
         super().__init__(inductor1.terminals + inductor2.terminals + (self.x, self.y), name)
         self.inductor1: Inductor = inductor1
         self.inductor2: Inductor = inductor2
@@ -179,11 +179,11 @@ class Transformer(Component):
 class VoltageFont(Component):
 
     def __init__(self, name: str, positive: str, negative: str, voltage_value: complex) -> None:
-        x: str = 'i'.join(random.choices(string.digits, k=K))
-        super().__init__([positive, negative, x], name)
+        self.x: str = f"I_{name}" 
+        super().__init__([positive, negative, self.x], name)
         self.positive: str = positive
         self.negative: str = negative
-        self.x: str = x 
+
         self.s: complex = voltage_value
         self.active: bool = True
 
@@ -204,7 +204,7 @@ class VoltageFont(Component):
 class VoltageFontControledByVoltage(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, amplification: complex):
-        self.x: str = 'i'.join(random.choices(string.digits, k=K))
+        self.x: str = f"I_{name}"
         super().__init__([positive, negative, positive_control, negative_control, self.x], name)
         self.positive: str = positive
         self.negative: str = negative
@@ -229,7 +229,7 @@ class VoltageFontControledByVoltage(Component):
 class CurrentFontControledByCurrent(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, amplification: complex):
-        self.x: str = 'i'.join(random.choices(string.digits, k=K))
+        self.x: str = f"I_{name}"
         super().__init__([positive, negative, positive_control, negative_control, self.x], name)
         self.positive: str = positive
         self.negative: str = negative
@@ -254,8 +254,8 @@ class CurrentFontControledByCurrent(Component):
 class VoltageFontControledByCurrent(Component):
 
     def __init__(self, name: str, positive: str, negative: str, positive_control: str, negative_control: str, amplification: complex):
-        self.x: str = 'i'.join(random.choices(string.digits, k=K))
-        self.y: str = 'i'.join(random.choices(string.digits, k=K))
+        self.x: str = f"I_control_{name}"
+        self.y: str = f"I_{name}"
         super().__init__([positive, negative, positive_control, negative_control, self.x, self.y], name)
         self.positive: str = positive
         self.negative: str = negative
