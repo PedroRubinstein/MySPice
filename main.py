@@ -27,26 +27,11 @@ if __name__ == "__main__":
         print(f"{variable}: {value} V")
     print(circuit_a.table())
 
-    circuit = Circuit()
 
-    components = [
-        Component.CurrentFont("I1", 'a', 'b', 1j),
-        Component.Inductor("L1", 'a', 'b', 2),
-        Component.Capacitor("C1", 'a', 'c', 2),
-        Component.Resistor("R1", 'c', 'b', 5),
-        Component.VoltageFontControledByCurrent("Gm1", 'c', 'd', 'b', 'c', 2),
-        Component.Resistor("R2", 'd', 'b', 3)
-    ]
-
-    for component in components:
-        circuit.add_component(component)
-
-    f = circuit.transfer_function('b', ("R2", "Current"), ("I1", "Current"))
-    f.plot_laplace()
-    f.plot_bode()
-
-    circuit.solve('b', sweep=1j)
-    
-    for variable, value in zip(circuit.terminals, circuit.voltages):
-        print(f"{variable}: {value} V")
-    print(circuit.table())
+    # Correct values:
+    # Va = 5.0 V
+    # Vb = 10.0 V
+    # Vc = 5.0 V
+    # gnd = 0
+    # I_V1 E I_V2 = 0,005 A
+    # I_R1 E I_R2 = 0,005 A
